@@ -1,12 +1,17 @@
+import base64
+import json
 import os
 
 import ee
 import geemap.foliumap as geemap
 import streamlit as st
+from google.oauth2 import service_account
 from PIL import Image
 
 # Set page configuration
-st.set_page_config(layout="wide", page_title="Análisis de Vulnerabilidad de La Plata")
+st.set_page_config(
+    layout="wide", page_title="Riesgo de inundación en La Plata, Berisso y Ensenada"
+)
 
 
 # Load logo
@@ -16,7 +21,7 @@ if os.path.exists(logo_path):
     st.sidebar.image(logo, width=150)
 
 # Sidebar information
-st.sidebar.title("Análisis de Riesgo de Inundación")
+st.sidebar.title("¿Qué?")
 st.sidebar.info(
     """
     Esta aplicación analiza el riesgo de inundación en los municipios de La Plata, Berisso y Ensenada
@@ -24,34 +29,17 @@ st.sidebar.info(
     """
 )
 
-st.sidebar.title("Contacto")
+st.sidebar.title("¿Quién?")
 st.sidebar.info(
     """
-    Hecho por Nissim Lebovits
-    
-    [https://nlebovits.github.io/](https://nlebovits.github.io/)
+    Hecho por [Nissim Lebovits](https://nlebovits.github.io/)
     """
 )
-
-import base64
-import json
-import os
-import sys
-
-import streamlit as st
-from google.oauth2 import service_account  # Make sure this import is present
 
 
 @st.cache_resource
 def initialize_ee():
-    # For debugging
-    st.write("Starting Earth Engine initialization...")
-
     try:
-        # Log environment info
-        st.write(f"Python version: {sys.version}")
-        st.write(f"Earth Engine library version: {ee.__version__}")
-
         # Check if secrets are available
         if "GOOGLE_SERVICE_ACCOUNT_KEY" not in st.secrets:
             st.error("GOOGLE_SERVICE_ACCOUNT_KEY not found in secrets")
@@ -61,52 +49,36 @@ def initialize_ee():
             st.error("GOOGLE_CLOUD_PROJECT_NAME not found in secrets")
             raise KeyError("Missing cloud project name in secrets")
 
-        # Get the first few characters of the key to confirm it's there
-        key_preview = st.secrets["GOOGLE_SERVICE_ACCOUNT_KEY"][:20] + "..."
-        st.write(f"Service account key preview: {key_preview}")
-        st.write(f"Project name: {st.secrets['GOOGLE_CLOUD_PROJECT_NAME']}")
-
-        # Try to decode the key to see if it's valid base64
+        # Try to decode the key
         try:
             decoded = base64.b64decode(st.secrets["GOOGLE_SERVICE_ACCOUNT_KEY"])
-            st.write("Base64 decoding successful")
 
-            # Try to parse as JSON
+            # Parse JSON
             try:
                 service_account_info = json.loads(decoded)
-                st.write("JSON parsing successful")
-                st.write(
-                    f"Service account email: {service_account_info.get('client_email', 'Not found')}"
-                )
 
                 # Create credentials
                 credentials = service_account.Credentials.from_service_account_info(
                     service_account_info,
                     scopes=["https://www.googleapis.com/auth/cloud-platform"],
                 )
-                st.write("Credentials created successfully")
 
-                # Now attempt initialization
-                st.write("About to call ee.Initialize()...")
+                # Initialize Earth Engine
                 ee.Initialize(
                     credentials=credentials,
                     project=st.secrets["GOOGLE_CLOUD_PROJECT_NAME"],
                 )
-                st.success("Earth Engine initialized successfully!")
 
             except json.JSONDecodeError as e:
                 st.error(f"Failed to parse JSON: {str(e)}")
                 raise
 
-        except Exception as e:
-            st.error(f"Failed to decode base64 or process credentials: {str(e)}")
-            # Try fallback method
-            st.warning("Attempting fallback initialization method...")
+        except Exception:
+            # Try fallback method silently
             ee.Initialize(project="ee-ciut")
-            st.success("Fallback initialization successful!")
 
     except Exception as e:
-        st.error(f"Overall initialization failed: {str(e)}")
+        st.error(f"Earth Engine initialization failed: {str(e)}")
         raise
 
 
@@ -249,16 +221,16 @@ def vulnerability_analysis():
                 "Población",
                 "Superficies Impermeables",
                 "Humedales",
-                "Puntuación de Vulnerabilidad",
+                "Vulnerabilidad",
             ],
-            ["Puntuación de Vulnerabilidad"],
+            ["Vulnerabilidad"],
         )
 
         # Group 1: Geographic reference layers
         geo_layers = st.multiselect(
             "Capas de Referencia Geográfica",
             ["Límites Municipales", "Cuencas", "Red Fluvial"],
-            ["Límites Municipales", "Cuencas", "Red Fluvial"],
+            ["Cuencas", "Red Fluvial"],
         )
 
         add_legend = st.checkbox("Mostrar leyenda de vulnerabilidad", True)
@@ -272,10 +244,7 @@ def vulnerability_analysis():
 
     # First prepare and add all analysis layers (bottom layers)
     population = None
-    if (
-        "Población" in analysis_layers
-        or "Puntuación de Vulnerabilidad" in analysis_layers
-    ):
+    if "Población" in analysis_layers or "Vulnerabilidad" in analysis_layers:
         population = get_population(aoi)
         if "Población" in analysis_layers:
             pop_vis = {
@@ -310,7 +279,7 @@ def vulnerability_analysis():
         }
         Map.addLayer(wetlands.mask(wetlands.neq(0)), wetlands_vis, "Humedales")
 
-    if "Puntuación de Vulnerabilidad" in analysis_layers:
+    if "Vulnerabilidad" in analysis_layers:
         # Get nighttime lights with fixed parameters
         ntl_composite = get_nighttime_lights(aoi)
 
@@ -320,7 +289,7 @@ def vulnerability_analysis():
         )
 
         vuln_vis = {"min": 0, "max": 1, "palette": ["green", "yellow", "orange", "red"]}
-        Map.addLayer(vulnerability_smoothed, vuln_vis, "Puntuación de Vulnerabilidad")
+        Map.addLayer(vulnerability_smoothed, vuln_vis, "Vulnerabilidad")
 
         if add_legend:
             legend_colors = ["#00ff00", "#ffff00", "#ffa500", "#ff0000"]
@@ -332,7 +301,7 @@ def vulnerability_analysis():
     # Then prepare and add all geographic reference layers (top layers)
     if "Límites Municipales" in geo_layers:
         styled_municipalities = municipalities.style(
-            **{"color": "#444444", "fillColor": "00000000", "width": 1.5}
+            **{"color": "#4C4E52", "fillColor": "00000000", "width": 1.5}
         )
         Map.addLayer(styled_municipalities, {}, "Límites Municipales")
 
@@ -344,7 +313,7 @@ def vulnerability_analysis():
 
     if "Red Fluvial" in geo_layers:
         river_atlas = get_river_network(municipalities)
-        styled_rivers = river_atlas.style(**{"color": "blue", "width": 1})
+        styled_rivers = river_atlas.style(**{"color": "blue", "width": 2})
         Map.addLayer(styled_rivers, {}, "Red Fluvial")
 
     # Render map
@@ -356,7 +325,7 @@ def app():
     # Initialize Earth Engine
     initialize_ee()
 
-    st.title("Herramienta de Análisis de Riesgo de Inundación")
+    st.title("Riesgo de inundación en La Plata, Berisso y Ensenada")
 
     # Run the main analysis directly without selection
     vulnerability_analysis()
