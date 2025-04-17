@@ -9,7 +9,7 @@ repos:
         exclude: ^notebooks/
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v4.5.0
     hooks:
       - id: trailing-whitespace
         exclude: ^notebooks/
@@ -20,3 +20,13 @@ repos:
       - id: check-json
       - id: debug-statements
         exclude: ^notebooks/
+
+  # Custom hook to ensure requirements.txt is updated from uv.lock
+  - repo: local
+    hooks:
+      - id: update-requirements
+        name: Update requirements.txt from uv.lock
+        entry: bash -c 'uv export --requirements requirements.txt'
+        language: system
+        pass_filenames: false
+        files: 'uv\.lock$'
