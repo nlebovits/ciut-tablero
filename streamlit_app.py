@@ -15,7 +15,7 @@ if os.path.exists(logo_path):
     st.sidebar.image(logo, width=150)
 
 # Sidebar information
-st.sidebar.title("Sobre la aplicación")
+st.sidebar.title("Análisis de Riesgo de Inundación")
 st.sidebar.info(
     """
     Esta aplicación analiza el riesgo de inundación en los municipios de La Plata, Berisso y Ensenada
@@ -26,19 +26,35 @@ st.sidebar.info(
 st.sidebar.title("Contacto")
 st.sidebar.info(
     """
-    Hecho por [Nissim Lebovits](https://nlebovits.github.io/)
+    Hecho por Nissim Lebovits
+    
+    [https://nlebovits.github.io/](https://nlebovits.github.io/)
     """
 )
 
+import base64
+import json
 
-# Initialize Earth Engine
+import streamlit as st
+from google.oauth2 import service_account
+
+
 @st.cache_resource
 def initialize_ee():
+    # Get credentials from Streamlit secrets
     try:
-        ee.Initialize()
-    except Exception:
-        ee.Authenticate()
-        ee.Initialize(project="ee-ciut")
+        service_account_info = json.loads(
+            base64.b64decode(st.secrets["GOOGLE_SERVICE_ACCOUNT_KEY"])
+        )
+        credentials = service_account.Credentials.from_service_account_info(
+            service_account_info,
+            scopes=["https://www.googleapis.com/auth/cloud-platform"],
+        )
+        cloud_project = st.secrets["GOOGLE_CLOUD_PROJECT_NAME"]
+        ee.Initialize(credentials=credentials, project=cloud_project)
+    except Exception as e:
+        st.error(f"Failed to initialize Earth Engine: {str(e)}")
+        raise
 
 
 # Main function for vulnerability analysis
@@ -180,16 +196,16 @@ def vulnerability_analysis():
                 "Población",
                 "Superficies Impermeables",
                 "Humedales",
-                "Vulnerabilidad",
+                "Puntuación de Vulnerabilidad",
             ],
-            ["Vulnerabilidad"],
+            ["Puntuación de Vulnerabilidad"],
         )
 
         # Group 1: Geographic reference layers
         geo_layers = st.multiselect(
             "Capas de Referencia Geográfica",
             ["Límites Municipales", "Cuencas", "Red Fluvial"],
-            ["Cuencas", "Red Fluvial"],
+            ["Límites Municipales", "Cuencas", "Red Fluvial"],
         )
 
         add_legend = st.checkbox("Mostrar leyenda de vulnerabilidad", True)
@@ -203,7 +219,10 @@ def vulnerability_analysis():
 
     # First prepare and add all analysis layers (bottom layers)
     population = None
-    if "Población" in analysis_layers or "Vulnerabilidad" in analysis_layers:
+    if (
+        "Población" in analysis_layers
+        or "Puntuación de Vulnerabilidad" in analysis_layers
+    ):
         population = get_population(aoi)
         if "Población" in analysis_layers:
             pop_vis = {
@@ -238,7 +257,7 @@ def vulnerability_analysis():
         }
         Map.addLayer(wetlands.mask(wetlands.neq(0)), wetlands_vis, "Humedales")
 
-    if "Vulnerabilidad" in analysis_layers:
+    if "Puntuación de Vulnerabilidad" in analysis_layers:
         # Get nighttime lights with fixed parameters
         ntl_composite = get_nighttime_lights(aoi)
 
@@ -248,7 +267,7 @@ def vulnerability_analysis():
         )
 
         vuln_vis = {"min": 0, "max": 1, "palette": ["green", "yellow", "orange", "red"]}
-        Map.addLayer(vulnerability_smoothed, vuln_vis, "Vulnerabilidad")
+        Map.addLayer(vulnerability_smoothed, vuln_vis, "Puntuación de Vulnerabilidad")
 
         if add_legend:
             legend_colors = ["#00ff00", "#ffff00", "#ffa500", "#ff0000"]
@@ -284,7 +303,7 @@ def app():
     # Initialize Earth Engine
     initialize_ee()
 
-    st.title("Riesgo de Inundación en La Plata, Berisso y Ensenada")
+    st.title("Herramienta de Análisis de Riesgo de Inundación")
 
     # Run the main analysis directly without selection
     vulnerability_analysis()
