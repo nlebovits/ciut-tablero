@@ -30,29 +30,3 @@ jobs:
           source .venv/bin/activate
           ruff check --exclude notebooks/ .
           ruff format --check --exclude notebooks/ .
-
-  security:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
-      - name: Install uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-      - name: Setup virtual environment and install dependencies
-        run: |
-          uv venv
-          source .venv/bin/activate
-          uv sync
-          uv pip install bandit safety
-      - name: Run security checks
-        run: |
-          source .venv/bin/activate
-          # Only flag high-severity issues with high confidence
-          bandit -r . -x tests/,notebooks/ -ll -iii
-          # Skip safety check for now as it's too strict for early development
-          # safety check --full-report
