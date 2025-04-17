@@ -19,12 +19,15 @@ jobs:
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-      - name: Install dependencies
+      - name: Setup virtual environment and install dependencies
         run: |
-          uv pip install -r requirements.txt
+          uv venv
+          source .venv/bin/activate
+          uv sync
           uv pip install ruff
       - name: Lint with Ruff
         run: |
+          source .venv/bin/activate
           ruff check .
           ruff format --check .
 
@@ -40,11 +43,40 @@ jobs:
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-      - name: Install dependencies
+      - name: Setup virtual environment and install dependencies
         run: |
-          uv pip install -r requirements.txt
+          uv venv
+          source .venv/bin/activate
+          uv sync
           uv pip install bandit safety
       - name: Run security checks
         run: |
+          source .venv/bin/activate
           bandit -r . -x tests/,notebooks/
           safety check
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      - name: Install dependencies
+        run: |
+          uv pip install -r requirements.txt
+          uv pip install pytest pytest-cov
+      - name: Test with pytest
+        run: |
+          pytest --cov=./ --cov-report=xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: ./coverage.xml
+          fail_ci_if_error: false
