@@ -34,6 +34,7 @@ st.sidebar.info(
 
 import base64
 import json
+import time
 
 import streamlit as st
 from google.oauth2 import service_account
@@ -41,8 +42,8 @@ from google.oauth2 import service_account
 
 @st.cache_resource
 def initialize_ee():
-    # Get credentials from Streamlit secrets
     try:
+        # Get credentials from Streamlit secrets
         service_account_info = json.loads(
             base64.b64decode(st.secrets["GOOGLE_SERVICE_ACCOUNT_KEY"])
         )
@@ -51,7 +52,37 @@ def initialize_ee():
             scopes=["https://www.googleapis.com/auth/cloud-platform"],
         )
         cloud_project = st.secrets["GOOGLE_CLOUD_PROJECT_NAME"]
-        ee.Initialize(credentials=credentials, project=cloud_project)
+
+        # Add a timeout mechanism
+        start_time = time.time()
+        timeout = 30  # seconds
+
+        # Initialize with timeout check
+        init_success = False
+        while time.time() - start_time < timeout:
+            try:
+                ee.Initialize(credentials=credentials, project=cloud_project)
+                init_success = True
+                break
+            except Exception as init_err:
+                st.warning(
+                    f"Initialization attempt failed: {str(init_err)}. Retrying..."
+                )
+                time.sleep(2)
+
+        if not init_success:
+            st.error("Earth Engine initialization timed out after 30 seconds")
+            raise TimeoutError("Earth Engine initialization timed out")
+
+        # Test if initialization worked by making a simple EE request
+        try:
+            # Simple test to check if EE is working
+            ee.Number(1).getInfo()
+            st.success("Earth Engine successfully initialized")
+        except Exception as test_err:
+            st.error(f"Earth Engine initialization test failed: {str(test_err)}")
+            raise
+
     except Exception as e:
         st.error(f"Failed to initialize Earth Engine: {str(e)}")
         raise
