@@ -8,6 +8,7 @@ from PIL import Image
 # Set page configuration
 st.set_page_config(layout="wide", page_title="Análisis de Vulnerabilidad de La Plata")
 
+
 # Load logo
 logo_path = os.path.join("assets", "logo.png")
 if os.path.exists(logo_path):
@@ -34,57 +35,78 @@ st.sidebar.info(
 
 import base64
 import json
-import time
+import os
+import sys
 
 import streamlit as st
-from google.oauth2 import service_account
+from google.oauth2 import service_account  # Make sure this import is present
 
 
 @st.cache_resource
 def initialize_ee():
+    # For debugging
+    st.write("Starting Earth Engine initialization...")
+
     try:
-        # Get credentials from Streamlit secrets
-        service_account_info = json.loads(
-            base64.b64decode(st.secrets["GOOGLE_SERVICE_ACCOUNT_KEY"])
-        )
-        credentials = service_account.Credentials.from_service_account_info(
-            service_account_info,
-            scopes=["https://www.googleapis.com/auth/cloud-platform"],
-        )
-        cloud_project = st.secrets["GOOGLE_CLOUD_PROJECT_NAME"]
+        # Log environment info
+        st.write(f"Python version: {sys.version}")
+        st.write(f"Earth Engine library version: {ee.__version__}")
 
-        # Add a timeout mechanism
-        start_time = time.time()
-        timeout = 30  # seconds
+        # Check if secrets are available
+        if "GOOGLE_SERVICE_ACCOUNT_KEY" not in st.secrets:
+            st.error("GOOGLE_SERVICE_ACCOUNT_KEY not found in secrets")
+            raise KeyError("Missing service account key in secrets")
 
-        # Initialize with timeout check
-        init_success = False
-        while time.time() - start_time < timeout:
-            try:
-                ee.Initialize(credentials=credentials, project=cloud_project)
-                init_success = True
-                break
-            except Exception as init_err:
-                st.warning(
-                    f"Initialization attempt failed: {str(init_err)}. Retrying..."
-                )
-                time.sleep(2)
+        if "GOOGLE_CLOUD_PROJECT_NAME" not in st.secrets:
+            st.error("GOOGLE_CLOUD_PROJECT_NAME not found in secrets")
+            raise KeyError("Missing cloud project name in secrets")
 
-        if not init_success:
-            st.error("Earth Engine initialization timed out after 30 seconds")
-            raise TimeoutError("Earth Engine initialization timed out")
+        # Get the first few characters of the key to confirm it's there
+        key_preview = st.secrets["GOOGLE_SERVICE_ACCOUNT_KEY"][:20] + "..."
+        st.write(f"Service account key preview: {key_preview}")
+        st.write(f"Project name: {st.secrets['GOOGLE_CLOUD_PROJECT_NAME']}")
 
-        # Test if initialization worked by making a simple EE request
+        # Try to decode the key to see if it's valid base64
         try:
-            # Simple test to check if EE is working
-            ee.Number(1).getInfo()
-            st.success("Earth Engine successfully initialized")
-        except Exception as test_err:
-            st.error(f"Earth Engine initialization test failed: {str(test_err)}")
-            raise
+            decoded = base64.b64decode(st.secrets["GOOGLE_SERVICE_ACCOUNT_KEY"])
+            st.write("Base64 decoding successful")
+
+            # Try to parse as JSON
+            try:
+                service_account_info = json.loads(decoded)
+                st.write("JSON parsing successful")
+                st.write(
+                    f"Service account email: {service_account_info.get('client_email', 'Not found')}"
+                )
+
+                # Create credentials
+                credentials = service_account.Credentials.from_service_account_info(
+                    service_account_info,
+                    scopes=["https://www.googleapis.com/auth/cloud-platform"],
+                )
+                st.write("Credentials created successfully")
+
+                # Now attempt initialization
+                st.write("About to call ee.Initialize()...")
+                ee.Initialize(
+                    credentials=credentials,
+                    project=st.secrets["GOOGLE_CLOUD_PROJECT_NAME"],
+                )
+                st.success("Earth Engine initialized successfully!")
+
+            except json.JSONDecodeError as e:
+                st.error(f"Failed to parse JSON: {str(e)}")
+                raise
+
+        except Exception as e:
+            st.error(f"Failed to decode base64 or process credentials: {str(e)}")
+            # Try fallback method
+            st.warning("Attempting fallback initialization method...")
+            ee.Initialize(project="ee-ciut")
+            st.success("Fallback initialization successful!")
 
     except Exception as e:
-        st.error(f"Failed to initialize Earth Engine: {str(e)}")
+        st.error(f"Overall initialization failed: {str(e)}")
         raise
 
 
