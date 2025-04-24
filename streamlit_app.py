@@ -4,6 +4,7 @@ import os
 
 import ee
 import geemap.foliumap as geemap
+import geopandas as gpd
 import streamlit as st
 from google.oauth2 import service_account
 from PIL import Image
@@ -107,11 +108,15 @@ def vulnerability_analysis():
 
     def get_aoi():
         municipalities = get_municipalities()
-        # Load level 1 basins and find intersecting ones
-        basin_l1 = ee.FeatureCollection(
-            "projects/sat-io/open-datasets/HydroAtlas/BasinAtlas/BasinATLAS_v10_lev12"
-        )
-        intersecting_basins = basin_l1.filterBounds(municipalities.geometry())
+
+        # Load basins from local parquet file
+        basins_gdf = gpd.read_parquet("data/dipsoh_cuencas.parquet")
+
+        # Convert GeoDataFrame to Earth Engine FeatureCollection
+        basins_ee = geemap.geopandas_to_ee(basins_gdf)
+
+        # Find intersecting basins
+        intersecting_basins = basins_ee.filterBounds(municipalities.geometry())
         aoi = intersecting_basins.geometry()
         return aoi
 
@@ -144,10 +149,10 @@ def vulnerability_analysis():
         )
         return wetlands
 
-    def get_river_network(municipalities):
+    def get_river_network(aoi):
         river_atlas = ee.FeatureCollection(
             "projects/sat-io/open-datasets/HydroAtlas/RiverAtlas_v10"
-        ).filterBounds(municipalities.geometry())
+        ).filterBounds(aoi)
         return river_atlas
 
     def get_nighttime_lights(aoi):
@@ -238,9 +243,10 @@ def vulnerability_analysis():
     # Compute data layers
     aoi = get_aoi()
     municipalities = get_municipalities()
-    basins = ee.FeatureCollection(
-        "projects/sat-io/open-datasets/HydroAtlas/BasinAtlas/BasinATLAS_v10_lev12"
-    ).filterBounds(municipalities.geometry())
+
+    # Load basins from local parquet file for visualization
+    basins_gdf = gpd.read_parquet("data/dipsoh_cuencas.parquet")
+    basins = geemap.geopandas_to_ee(basins_gdf).filterBounds(municipalities.geometry())
 
     # First prepare and add all analysis layers (bottom layers)
     population = None
@@ -312,7 +318,7 @@ def vulnerability_analysis():
         Map.addLayer(styled_basins, {}, "Cuencas")
 
     if "Red Fluvial" in geo_layers:
-        river_atlas = get_river_network(municipalities)
+        river_atlas = get_river_network(aoi)
         styled_rivers = river_atlas.style(**{"color": "blue", "width": 2})
         Map.addLayer(styled_rivers, {}, "Red Fluvial")
 

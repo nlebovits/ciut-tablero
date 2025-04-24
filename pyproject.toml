@@ -13,6 +13,7 @@ dependencies = [
     "pre-commit>=4.2.0",
     "pytest>=8.3.5",
     "radon>=6.0.1",
+    "seaborn>=0.13.2",
     "setuptools>=78.1.0",
     "streamlit>=1.44.1",
     "vulture>=2.14",

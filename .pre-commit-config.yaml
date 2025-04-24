@@ -26,7 +26,7 @@ repos:
     hooks:
       - id: update-requirements
         name: Update requirements.txt from uv.lock
-        entry: bash -c 'uv export --requirements requirements.txt'
+        entry: bash -c 'uv pip compile pyproject.toml -o requirements.txt'
         language: system
         pass_filenames: false
-        files: 'uv\.lock$'
+        files: 'uv\.lock$|pyproject\.toml$'
