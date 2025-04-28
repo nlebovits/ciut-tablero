@@ -112,7 +112,9 @@ google-auth-httplib2==0.2.0
 google-cloud-core==2.4.3
     # via google-cloud-storage
 google-cloud-storage==3.1.0
-    # via earthengine-api
+    # via
+    #   ciut-tablero (pyproject.toml)
+    #   earthengine-api
 google-crc32c==1.7.1
     # via
     #   google-cloud-storage
