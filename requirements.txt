@@ -212,6 +212,7 @@ numpy==2.2.4
     #   pandas
     #   pydeck
     #   pyogrio
+    #   scipy
     #   seaborn
     #   shapely
     #   streamlit
@@ -333,6 +334,8 @@ rpds-py==0.24.0
     #   referencing
 rsa==4.9
     # via google-auth
+scipy==1.15.2
+    # via ciut-tablero (pyproject.toml)
 scooby==0.10.0
     # via geemap
 seaborn==0.13.2
