@@ -17,6 +17,7 @@ repos:
         exclude: ^notebooks/
       - id: check-yaml
       - id: check-added-large-files
+        exclude: ^tutorials/data/
       - id: check-json
       - id: debug-statements
         exclude: ^notebooks/
