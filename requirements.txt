@@ -3,6 +3,7 @@
 affine==2.4.0
     # via
     #   rasterio
+    #   rasterstats
     #   xee
 aiohappyeyeballs==2.6.1
     # via aiohttp
@@ -96,6 +97,7 @@ click==8.1.8
     #   localtileserver
     #   mercantile
     #   rasterio
+    #   rasterstats
     #   rio-cogeo
     #   streamlit
     #   uvicorn
@@ -107,6 +109,7 @@ cligj==0.7.2
     # via
     #   fiona
     #   rasterio
+    #   rasterstats
 cloudpickle==3.1.1
     # via
     #   dask
@@ -171,7 +174,9 @@ filelock==3.18.0
     #   torch
     #   virtualenv
 fiona==1.10.1
-    # via ciut-tablero (pyproject.toml)
+    # via
+    #   ciut-tablero (pyproject.toml)
+    #   rasterstats
 flask==3.1.1
     # via
     #   flask-caching
@@ -468,6 +473,7 @@ numpy==2.2.4
     #   pydeck
     #   pyogrio
     #   rasterio
+    #   rasterstats
     #   rio-tiler
     #   rioxarray
     #   safetensors
@@ -713,9 +719,12 @@ rasterio==1.4.3
     #   contextily
     #   georeader-spaceml
     #   ml4floods
+    #   rasterstats
     #   rio-cogeo
     #   rio-tiler
     #   rioxarray
+rasterstats==0.20.0
+    # via ciut-tablero (pyproject.toml)
 ratelim==0.1.6
     # via geocoder
 referencing==0.36.2
@@ -794,6 +803,9 @@ shapely==2.1.0
     #   cartopy
     #   geopandas
     #   georeader-spaceml
+    #   rasterstats
+simplejson==3.20.1
+    # via rasterstats
 simsimd==6.2.1
     # via albucore
 six==1.17.0
